@@ -18,8 +18,8 @@ import { cn } from '../lib/utils';
 
 export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelectDate }) {
   const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(currentMonth)),
-    end: endOfWeek(endOfMonth(currentMonth))
+    start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
+    end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 })
   });
 
   return (
@@ -45,7 +45,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
 
       {/* Grid */}
       <div className="grid grid-cols-7 gap-2">
-        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(day => (
+        {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(day => (
           <div key={day} className="text-xs text-muted-foreground text-center font-medium py-2">
             {day}
           </div>
