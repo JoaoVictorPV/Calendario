@@ -108,7 +108,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
         >
           <ChevronLeft size={20} />
         </button>
-        <h2 className="text-lg font-medium capitalize text-foreground">
+        <h2 className="text-xl font-bold capitalize text-foreground drop-shadow-sm">
           {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
         </h2>
         <button 
@@ -125,8 +125,8 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
           <div 
             key={i} 
             className={cn(
-              "text-xs text-center font-medium py-2 select-none",
-              (i >= 5) ? "text-red-500" : "text-muted-foreground"
+              "text-sm text-center font-bold py-2 select-none drop-shadow-sm",
+              (i >= 5) ? "text-red-600" : "text-slate-800"
             )}
           >
             {day}
@@ -150,13 +150,13 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
               }}
               className={cn(
                 "aspect-[4/5] rounded-xl flex flex-col items-center justify-start pt-2 gap-1 transition-all border relative overflow-hidden",
-                isCurrentMonth ? "bg-white border-border/50 shadow-sm" : "bg-transparent border-transparent opacity-40",
+                isCurrentMonth ? "bg-white border-border/50 shadow-md" : "bg-transparent border-transparent opacity-40",
                 isTodayDate && "ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50",
-                "hover:border-primary/30 hover:shadow-md active:scale-95"
+                "hover:border-primary/30 hover:shadow-lg active:scale-95"
               )}
             >
               <span className={cn(
-                "text-sm font-medium",
+                "text-base font-bold text-slate-900",
                 isTodayDate && "text-primary"
               )}>
                 {format(date, 'd')}
