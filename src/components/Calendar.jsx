@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   format, 
   startOfMonth, 
@@ -17,13 +17,45 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelectDate }) {
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      setCurrentMonth(addMonths(currentMonth, 1));
+    }
+    if (isRightSwipe) {
+      setCurrentMonth(subMonths(currentMonth, 1));
+    }
+  };
+
   const days = eachDayOfInterval({
     start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 })
   });
 
   return (
-    <div className="space-y-4">
+    <div 
+      className="space-y-4 touch-pan-y"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       {/* Month Navigation */}
       <div className="flex items-center justify-between px-2">
         <button 
@@ -32,7 +64,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
         >
           <ChevronLeft size={20} />
         </button>
-        <h2 className="text-lg font-medium capitalize text-foreground">
+        <h2 className="text-lg font-medium capitalize text-foreground select-none">
           {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
         </h2>
         <button 
@@ -46,7 +78,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
       {/* Grid */}
       <div className="grid grid-cols-7 gap-2">
         {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(day => (
-          <div key={day} className="text-xs text-muted-foreground text-center font-medium py-2">
+          <div key={day} className="text-xs text-muted-foreground text-center font-medium py-2 select-none">
             {day}
           </div>
         ))}
@@ -62,7 +94,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
               key={i}
               onClick={() => onSelectDate(date)}
               className={cn(
-                "aspect-[4/5] rounded-xl flex flex-col items-center justify-start pt-2 gap-1 transition-all border",
+                "aspect-[4/5] rounded-xl flex flex-col items-center justify-start pt-2 gap-1 transition-all border relative overflow-hidden",
                 isCurrentMonth ? "bg-white border-border/50 shadow-sm" : "bg-transparent border-transparent opacity-40",
                 isTodayDate && "ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50",
                 "hover:border-primary/30 hover:shadow-md active:scale-95"
@@ -75,21 +107,21 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
                 {format(date, 'd')}
               </span>
               
-              {/* Dots Indicator */}
-              <div className="flex gap-1 flex-wrap justify-center px-1 w-full content-start h-full">
+              {/* Dots Indicator - Larger size (w-2.5 h-2.5 = 10px) */}
+              <div className="flex gap-1 flex-wrap justify-center px-0.5 w-full content-start h-full mt-0.5">
                 {dayEvents.slice(0, 6).map(event => {
                    const tag = tags.find(t => t.id === event.tag_id);
-                   const color = tag ? tag.color : '#E5E5E5'; // Default grey
+                   const color = tag ? tag.color : '#E5E5E5'; 
                    return (
                      <div 
                        key={event.id} 
-                       className="w-1.5 h-1.5 rounded-full shrink-0"
+                       className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
                        style={{ backgroundColor: color }}
                      />
                    )
                 })}
                  {dayEvents.length > 6 && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30 shrink-0" />
                 )}
               </div>
             </button>
