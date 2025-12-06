@@ -5,13 +5,13 @@ import { eachDayOfInterval, isSameDay, format, startOfToday, addMonths } from 'd
 import { cn } from '../lib/utils';
 
 const WEEKDAYS = [
-  { label: 'D', value: 0 },
   { label: 'S', value: 1 },
   { label: 'T', value: 2 },
   { label: 'Q', value: 3 },
   { label: 'Q', value: 4 },
   { label: 'S', value: 5 },
   { label: 'S', value: 6 },
+  { label: 'D', value: 0 },
 ];
 
 export function BatchModal({ onClose, tags, onSuccess }) {
@@ -140,6 +140,8 @@ export function BatchModal({ onClose, tags, onSuccess }) {
             <div className="flex justify-between gap-1">
               {WEEKDAYS.map(day => {
                 const isSelected = selectedWeekdays.includes(day.value);
+                const isWeekend = day.value === 0 || day.value === 6;
+                
                 return (
                   <button
                     key={day.value}
@@ -148,7 +150,8 @@ export function BatchModal({ onClose, tags, onSuccess }) {
                       "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-medium transition-all",
                       isSelected 
                         ? "bg-primary text-primary-foreground shadow-md scale-105" 
-                        : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                        : "bg-secondary/50 hover:bg-secondary",
+                      !isSelected && isWeekend ? "text-red-500" : "text-muted-foreground"
                     )}
                   >
                     {day.label}
