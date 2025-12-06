@@ -60,17 +60,25 @@ function App() {
   if (!session) return <Login />;
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 pb-20 sm:pb-0">
-      <div className="max-w-xl mx-auto p-6 space-y-6">
-        
-        {/* Header */}
-        <header className="flex items-center justify-between py-4">
+    <div className="min-h-screen font-sans selection:bg-primary/20 pb-20 sm:pb-0 relative">
+      
+      {/* Background Wallpaper */}
+      <div 
+        className="fixed inset-0 z-0 bg-cover bg-center"
+        style={{ backgroundImage: 'url(/bg.jpg)' }}
+      >
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
+      </div>
+
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="max-w-xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white rounded-xl shadow-sm border border-border">
               <Sun className="text-primary" size={24} />
             </div>
-            <h1 className="text-xl font-medium tracking-tight text-foreground">
-              Agenda On-Line
+            <h1 className="text-xl font-medium tracking-tight text-foreground uppercase">
+              AGENDA
             </h1>
           </div>
           
@@ -104,8 +112,11 @@ function App() {
               <List size={20} />
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      {/* Main Content (Scrollable) */}
+      <div className="max-w-xl mx-auto p-6 pt-24 space-y-6 relative z-10">
         <Calendar 
           currentMonth={currentMonth}
           setCurrentMonth={setCurrentMonth}
@@ -113,44 +124,45 @@ function App() {
           tags={tags}
           onSelectDate={setSelectedDate}
         />
+      </div>
 
-        {selectedDate && (
-          <DayModal 
-            date={selectedDate} 
-            onClose={() => setSelectedDate(null)}
+      {/* Modals */}
+      {selectedDate && (
+        <DayModal 
+          date={selectedDate} 
+          onClose={() => setSelectedDate(null)}
+          events={events}
+          tags={tags}
+          setEvents={setEvents}
+          setTags={setTags}
+          session={session}
+        />
+      )}
+
+      {isTimelineOpen && (
+          <Timeline 
+            onClose={() => setIsTimelineOpen(false)}
             events={events}
             tags={tags}
-            setEvents={setEvents}
-            setTags={setTags}
-            session={session}
           />
-        )}
+      )}
+      
+      {isTagManagerOpen && (
+        <TagManager 
+          onClose={() => setIsTagManagerOpen(false)}
+          tags={tags}
+          setTags={setTags}
+        />
+      )}
 
-        {isTimelineOpen && (
-           <Timeline 
-             onClose={() => setIsTimelineOpen(false)}
-             events={events}
-             tags={tags}
-           />
-        )}
-        
-        {isTagManagerOpen && (
-          <TagManager 
-            onClose={() => setIsTagManagerOpen(false)}
-            tags={tags}
-            setTags={setTags}
-          />
-        )}
+      {isBatchModalOpen && (
+        <BatchModal 
+          onClose={() => setIsBatchModalOpen(false)}
+          tags={tags}
+          onSuccess={fetchData}
+        />
+      )}
 
-        {isBatchModalOpen && (
-          <BatchModal 
-            onClose={() => setIsBatchModalOpen(false)}
-            tags={tags}
-            onSuccess={fetchData}
-          />
-        )}
-
-      </div>
     </div>
   );
 }
