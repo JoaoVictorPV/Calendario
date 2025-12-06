@@ -5,8 +5,9 @@ import { Calendar } from './components/Calendar';
 import { DayModal } from './components/DayModal';
 import { Timeline } from './components/Timeline';
 import { TagManager } from './components/TagManager';
+import { BatchModal } from './components/BatchModal';
 import { migrateLocalData } from './lib/migration';
-import { Sun, LogOut, List, Tag } from 'lucide-react';
+import { Sun, LogOut, List, Tag, CalendarPlus } from 'lucide-react';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -21,6 +22,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -88,6 +90,13 @@ function App() {
               <Tag size={20} />
             </button>
             <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="p-2 rounded-lg bg-white border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
+              title="Adicionar em Massa"
+            >
+              <CalendarPlus size={20} />
+            </button>
+            <button
               onClick={() => setIsTimelineOpen(true)}
               className="p-2 rounded-lg bg-white border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
               title="Timeline"
@@ -130,6 +139,14 @@ function App() {
             onClose={() => setIsTagManagerOpen(false)}
             tags={tags}
             setTags={setTags}
+          />
+        )}
+
+        {isBatchModalOpen && (
+          <BatchModal 
+            onClose={() => setIsBatchModalOpen(false)}
+            tags={tags}
+            onSuccess={fetchData}
           />
         )}
 
