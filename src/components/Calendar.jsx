@@ -19,8 +19,22 @@ import { cn } from '../lib/utils';
 export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelectDate }) {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const minSwipeDistance = 50;
 
+  const handleSwipe = (distance) => {
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      setCurrentMonth(addMonths(currentMonth, 1));
+    }
+    if (isRightSwipe) {
+      setCurrentMonth(subMonths(currentMonth, 1));
+    }
+  };
+
+  // Touch Handlers
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -33,14 +47,40 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    
-    if (isLeftSwipe) {
-      setCurrentMonth(addMonths(currentMonth, 1));
+    handleSwipe(distance);
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Mouse Handlers
+  const onMouseDown = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.clientX);
+    setIsDragging(true);
+  };
+
+  const onMouseMove = (e) => {
+    if (isDragging) {
+      setTouchEnd(e.clientX);
     }
-    if (isRightSwipe) {
-      setCurrentMonth(subMonths(currentMonth, 1));
+  };
+
+  const onMouseUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (touchStart && touchEnd) {
+       const distance = touchStart - touchEnd;
+       handleSwipe(distance);
+    }
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  const onMouseLeave = () => {
+    if(isDragging) {
+        setIsDragging(false);
+        setTouchStart(null);
+        setTouchEnd(null);
     }
   };
 
@@ -51,10 +91,14 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
 
   return (
     <div 
-      className="space-y-4 touch-pan-y"
+      className="space-y-4 touch-pan-y select-none"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
     >
       {/* Month Navigation */}
       <div className="flex items-center justify-between px-2">
@@ -64,7 +108,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
         >
           <ChevronLeft size={20} />
         </button>
-        <h2 className="text-lg font-medium capitalize text-foreground select-none">
+        <h2 className="text-lg font-medium capitalize text-foreground">
           {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
         </h2>
         <button 
@@ -78,7 +122,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
       {/* Grid */}
       <div className="grid grid-cols-7 gap-2">
         {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(day => (
-          <div key={day} className="text-xs text-muted-foreground text-center font-medium py-2 select-none">
+          <div key={day} className="text-xs text-muted-foreground text-center font-medium py-2">
             {day}
           </div>
         ))}
@@ -92,7 +136,12 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
           return (
             <button
               key={i}
-              onClick={() => onSelectDate(date)}
+              onClick={() => {
+                // Prevent click if it was a drag
+                if (!touchStart || !touchEnd) {
+                   onSelectDate(date);
+                }
+              }}
               className={cn(
                 "aspect-[4/5] rounded-xl flex flex-col items-center justify-start pt-2 gap-1 transition-all border relative overflow-hidden",
                 isCurrentMonth ? "bg-white border-border/50 shadow-sm" : "bg-transparent border-transparent opacity-40",
@@ -107,7 +156,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
                 {format(date, 'd')}
               </span>
               
-              {/* Dots Indicator - Larger size (w-2.5 h-2.5 = 10px) */}
+              {/* Dots Indicator */}
               <div className="flex gap-1 flex-wrap justify-center px-0.5 w-full content-start h-full mt-0.5">
                 {dayEvents.slice(0, 6).map(event => {
                    const tag = tags.find(t => t.id === event.tag_id);
