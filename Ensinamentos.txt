@@ -1,0 +1,103 @@
+# Engenharia de Navegação Gestual Unificada (Touch & Mouse) em React
+
+Este documento detalha a implementação técnica da navegação por "arrasto" (Swipe) no componente de Calendário, abordando a unificação de eventos de Toque (Mobile) e Mouse (Desktop) sem dependências externas pesadas.
+
+## 1. O Desafio Técnico
+
+O objetivo era transformar um calendário estático (navegação apenas por clique em botões) em uma interface fluida e responsiva a gestos, permitindo a troca de meses ao deslizar lateralmente.
+
+**Restrições:**
+1.  **Mobile First:** A prioridade era a experiência de toque (Touch Events).
+2.  **Desktop Support:** A funcionalidade deveria ser replicada via Mouse (Drag), pois eventos de toque não disparam em desktops convencionais.
+3.  **Zero-Dependency:** Evitar bibliotecas pesadas (`react-use-gesture`, `hammer.js`) para manter o bundle leve e a arquitetura robusta ("Vanilla React").
+
+## 2. Arquitetura da Solução
+
+A solução baseia-se no rastreamento de coordenadas do eixo X (`clientX`) durante o ciclo de vida da interação (Início -> Movimento -> Fim).
+
+### 2.1. Estado (State Management)
+
+Utilizamos três estados locais (`useState`) para gerenciar a física do gesto:
+
+*   `touchStart`: Armazena a coordenada X inicial onde o evento começou.
+*   `touchEnd`: Armazena a coordenada X atual/final.
+*   `isDragging`: (Exclusivo para Mouse) Booleano que atua como um *semaphore* para diferenciar o movimento passivo do mouse (hover) do movimento ativo de arrasto (drag).
+
+### 2.2. Constantes Físicas
+
+*   `minSwipeDistance = 50`: Define o limiar (threshold) em pixels. Movimentos menores que 50px são considerados ruído ou cliques imperfeitos e são ignorados para evitar trocas acidentais de mês.
+
+## 3. Implementação dos Handlers (Manipuladores de Eventos)
+
+A lógica foi segregada em dois grupos de eventos que convergem para uma única função de cálculo (`handleSwipe`).
+
+### A. Camada Mobile (Touch API)
+
+A Touch API é mais direta pois o navegador já entende o conceito de "gesto" implícito no toque.
+
+1.  **`onTouchStart`**: Captura `e.targetTouches[0].clientX`. Reseta o `touchEnd`.
+2.  **`onTouchMove`**: Atualiza continuamente o `touchEnd` com a nova posição do dedo.
+3.  **`onTouchEnd`**: O dedo deixou a tela. Calculamos a diferença (`start - end`).
+
+### B. Camada Desktop (Mouse API)
+
+A Mouse API exige um controle de estado mais rigoroso, pois o evento `mousemove` dispara constantemente. Precisamos simular o comportamento de "toque" usando o botão do mouse.
+
+1.  **`onMouseDown`**: Equivalente ao `TouchStart`.
+    *   Setamos `isDragging = true`.
+    *   Capturamos `clientX`.
+2.  **`onMouseMove`**: Equivalente ao `TouchMove`.
+    *   **Guarda:** `if (!isDragging) return;` (Ignora movimentos se o botão não estiver pressionado).
+    *   Atualiza a coordenada final.
+3.  **`onMouseUp`**: Equivalente ao `TouchEnd`.
+    *   Setamos `isDragging = false`.
+    *   Disparamos a lógica de cálculo se houver coordenadas válidas.
+4.  **`onMouseLeave`**: (Crucial para Desktop) Se o usuário arrastar o mouse para fora do componente e soltar o botão, o evento `onMouseUp` pode não disparar dentro do componente.
+    *   Ação: Cancelar o arrasto (`isDragging = false`) e limpar os estados para evitar comportamentos zumbis.
+
+## 4. Lógica de Cálculo (Core Logic)
+
+A função `handleSwipe(distance)` é agnóstica à origem do evento (mouse ou touch).
+
+```javascript
+const distance = touchStart - touchEnd;
+const isLeftSwipe = distance > minSwipeDistance;
+const isRightSwipe = distance < -minSwipeDistance;
+```
+
+*   **Swipe Esquerdo (Left):** `start > end`. O usuário arrastou da direita para a esquerda -> Avançar Mês (`addMonths`).
+*   **Swipe Direito (Right):** `start < end`. O usuário arrastou da esquerda para a direita -> Voltar Mês (`subMonths`).
+
+## 5. Otimizações de CSS e UX
+
+Para que a lógica JS funcione perfeitamente, o CSS precisa cooperar:
+
+1.  **`touch-pan-y`**:
+    *   Propriedade crítica aplicada ao container.
+    *   Instrui o navegador a permitir o scroll vertical nativo, mas reservar o movimento horizontal para a nossa lógica customizada. Sem isso, o navegador poderia bloquear o gesto horizontal ou tentar dar "voltar página" no histórico.
+2.  **`select-none` (user-select: none)**:
+    *   Essencial para Desktop. Evita que, ao arrastar o mouse, o navegador tente selecionar o texto dos dias/datas, o que quebraria a imersão e a funcionalidade do drag.
+
+## 6. Código Fonte de Referência
+
+```javascript
+  // Lógica Unificada
+  const handleSwipe = (distance) => {
+    if (distance > minSwipeDistance) setCurrentMonth(addMonths(currentMonth, 1));
+    if (distance < -minSwipeDistance) setCurrentMonth(subMonths(currentMonth, 1));
+  };
+
+  //... binds no JSX
+  <div 
+    className="touch-pan-y select-none"
+    onTouchStart={onTouchStart} 
+    onTouchMove={onTouchMove} 
+    onTouchEnd={onTouchEnd}
+    onMouseDown={onMouseDown} 
+    onMouseMove={onMouseMove} 
+    onMouseUp={onMouseUp} 
+    onMouseLeave={onMouseLeave}
+  >
+```
+
+Esta abordagem garante performance máxima (manipulação direta do DOM via React Synthetic Events) e compatibilidade total cross-platform.
