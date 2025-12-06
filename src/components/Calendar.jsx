@@ -121,8 +121,14 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
 
       {/* Grid */}
       <div className="grid grid-cols-7 gap-2">
-        {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map(day => (
-          <div key={day} className="text-xs text-muted-foreground text-center font-medium py-2">
+        {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((day, i) => (
+          <div 
+            key={i} 
+            className={cn(
+              "text-xs text-center font-medium py-2 select-none",
+              (i >= 5) ? "text-red-500" : "text-muted-foreground"
+            )}
+          >
             {day}
           </div>
         ))}
