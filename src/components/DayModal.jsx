@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { X, Trash2, Plus, Check, Tag } from 'lucide-react';
+import { X, Trash2, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { predefinedTagColors } from '../lib/tagColors';
@@ -99,6 +99,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setNoteStatus('saving');
 
+    // Mantém auto-save, mas mais "imediato" para o usuário.
     saveTimerRef.current = setTimeout(async () => {
       await upsertEventNote({
         userId: session.user.id,
@@ -117,7 +118,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
 
       setNoteStatus('saved');
       setTimeout(() => setNoteStatus('idle'), 800);
-    }, 600);
+    }, 200);
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -249,30 +250,11 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
               </span>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
-              {dayEvents.map(ev => (
-                <button
-                  key={ev.id}
-                  type="button"
-                  onClick={() => setSelectedEventIdForNote(ev.id)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-xl text-xs font-medium border transition-all',
-                    selectedEventIdForNote === ev.id
-                      ? 'bg-primary text-primary-foreground border-transparent'
-                      : 'bg-background border-border text-muted-foreground hover:bg-secondary/40'
-                  )}
-                  title="Selecionar evento para observações"
-                >
-                  {ev.title}
-                </button>
-              ))}
-            </div>
-
             <textarea
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               disabled={!selectedEventIdForNote}
-              placeholder={selectedEventIdForNote ? 'Escreva suas observações…' : 'Selecione um evento acima para adicionar observações.'}
+              placeholder={selectedEventIdForNote ? 'Escreva suas observações…' : 'Clique em um evento abaixo para adicionar/editar a observação.'}
               className={cn(
                 'w-full min-h-[96px] max-h-[180px] resize-y rounded-2xl px-4 py-3 border outline-none transition-all text-sm',
                 'bg-background border-border focus:border-primary/60',
@@ -293,7 +275,19 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
               dayEvents.map(event => {
                 const tag = tags.find(t => t.id === event.tag_id);
                 return (
-                  <div key={event.id} className="group flex items-start gap-3 p-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
+                  <div
+                    key={event.id}
+                    onPointerDown={(e) => {
+                      // Não trocar seleção ao interagir com botões/inputs
+                      if (e.target?.closest?.('button, input')) return;
+                      setSelectedEventIdForNote(event.id);
+                    }}
+                    className={cn(
+                      'group flex items-start gap-3 p-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all',
+                      selectedEventIdForNote === event.id && 'ring-2 ring-primary/40'
+                    )}
+                    title="Clique para editar a observação deste evento"
+                  >
                      <div 
                        className="w-3 h-3 rounded-full mt-1.5 shrink-0"
                        style={{ backgroundColor: tag ? tag.color : '#E5E5E5' }} 
@@ -303,6 +297,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                         <input
                           type="text"
                           defaultValue={event.title}
+                          onFocus={() => setSelectedEventIdForNote(event.id)}
                           onBlur={(e) => handleUpdateEvent(event.id, e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
