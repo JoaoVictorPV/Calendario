@@ -25,7 +25,10 @@ function App() {
 
   const [isDark, setIsDark] = useState(() => {
     try {
-      return localStorage.getItem('clepsidra_theme') === 'dark';
+      const saved = localStorage.getItem('clepsidra_theme');
+      if (saved === 'dark') return true;
+      if (saved === 'light') return false;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch {
       return false;
     }
@@ -93,20 +96,16 @@ function App() {
           </div>
           
           <div className="flex gap-2">
+            {/* Eventos em massa (mais à esquerda entre os botões de ação) */}
             <button
-              onClick={() => setIsDark(v => !v)}
+              onClick={() => setIsBatchModalOpen(true)}
               className="p-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
-              title={isDark ? 'Modo claro' : 'Modo escuro'}
+              title="Adicionar em Massa"
             >
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+              <CalendarPlus size={20} />
             </button>
-             <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-destructive transition-all"
-              title="Sair"
-            >
-              <LogOut size={20} />
-            </button>
+
+            {/* Tags */}
             <button
               onClick={() => setIsTagManagerOpen(true)}
               className="p-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
@@ -114,12 +113,23 @@ function App() {
             >
               <Tag size={20} />
             </button>
+
+            {/* Tema (fica à esquerda do deslogar) */}
             <button
-              onClick={() => setIsBatchModalOpen(true)}
+              onClick={() => setIsDark(v => !v)}
               className="p-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
-              title="Adicionar em Massa"
+              title={isDark ? 'Modo claro' : 'Modo escuro'}
             >
-              <CalendarPlus size={20} />
+              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
+            {/* Deslogar (mais à direita) */}
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-destructive transition-all"
+              title="Sair"
+            >
+              <LogOut size={20} />
             </button>
           </div>
         </div>

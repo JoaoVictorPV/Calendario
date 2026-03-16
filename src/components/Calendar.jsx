@@ -126,7 +126,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
             key={i} 
             className={cn(
               "text-sm text-center font-bold py-2 select-none drop-shadow-sm",
-              (i >= 5) ? "text-red-600" : "text-slate-800"
+              (i >= 5) ? "text-red-500" : "text-foreground"
             )}
           >
             {day}
@@ -156,7 +156,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
               )}
             >
               <span className={cn(
-                "text-base font-bold text-slate-900",
+                "text-base font-bold text-foreground",
                 isTodayDate && "text-primary"
               )}>
                 {format(date, 'd')}

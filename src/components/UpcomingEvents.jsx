@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   endOfMonth,
   endOfWeek,
@@ -21,6 +21,8 @@ const MODES = [
   { key: 'week', label: 'Semana' },
   { key: 'month', label: 'Mês' },
 ];
+
+const NO_TAG_ID = '__no_tag__';
 
 function buildInterval(anchorDate, mode) {
   if (mode === 'day') {
@@ -52,57 +54,153 @@ export function UpcomingEvents({ events, tags }) {
   const [isDragging, setIsDragging] = useState(false);
   const minSwipeDistance = 50;
 
+  // Melhora robustez: detecta intenção horizontal vs vertical
+  const startYRef = useRef(null);
+  const isHorizontalIntentRef = useRef(false);
+  const lastXRef = useRef(null);
+
+  const shouldIgnoreGestureTarget = (target) => {
+    const el = target instanceof Element ? target : null;
+    if (!el) return false;
+    // Não capturar swipe iniciando em elementos interativos
+    return !!el.closest('input, textarea, select, button, a, [role="button"], [data-no-swipe]');
+  };
+
   const handleSwipe = (distance) => {
     if (distance > minSwipeDistance) setAnchorDate(prev => shiftAnchorDate(prev, mode, +1));
     if (distance < -minSwipeDistance) setAnchorDate(prev => shiftAnchorDate(prev, mode, -1));
   };
 
   const onTouchStart = (e) => {
+    if (shouldIgnoreGestureTarget(e.target)) return;
+    const t = e.targetTouches?.[0];
+    if (!t) return;
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStart(t.clientX);
+    startYRef.current = t.clientY;
+    isHorizontalIntentRef.current = false;
+    lastXRef.current = t.clientX;
   };
 
   const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    const t = e.targetTouches?.[0];
+    if (!t || touchStart === null) return;
+
+    const dx = Math.abs(t.clientX - touchStart);
+    const dy = Math.abs(t.clientY - (startYRef.current ?? t.clientY));
+    // “Trava” quando perceber que a intenção é horizontal
+    if (!isHorizontalIntentRef.current && dx > 8 && dx > dy) {
+      isHorizontalIntentRef.current = true;
+    }
+
+    if (isHorizontalIntentRef.current) {
+      setTouchEnd(t.clientX);
+      lastXRef.current = t.clientX;
+    }
   };
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    handleSwipe(touchStart - touchEnd);
+  const onTouchEnd = (e) => {
+    if (touchStart === null) return;
+    // Fallback: usa changedTouches caso não tenha passado por move
+    const endX = (touchEnd ?? lastXRef.current ?? e.changedTouches?.[0]?.clientX);
+    const endY = (e.changedTouches?.[0]?.clientY ?? startYRef.current);
+    if (endX === null || endX === undefined) {
+      setTouchStart(null);
+      setTouchEnd(null);
+      return;
+    }
+
+    const distance = touchStart - endX;
+    const dy = Math.abs((endY ?? 0) - (startYRef.current ?? (endY ?? 0)));
+    const dx = Math.abs(distance);
+
+    // Se foi um swipe rápido sem onTouchMove suficiente, decide aqui.
+    const shouldTreatAsHorizontal = isHorizontalIntentRef.current || (dx > dy);
+
+    // Só navega se a intenção foi horizontal e passou do threshold
+    if (shouldTreatAsHorizontal && Math.abs(distance) >= minSwipeDistance) {
+      handleSwipe(distance);
+    }
+
     setTouchStart(null);
     setTouchEnd(null);
+    startYRef.current = null;
+    isHorizontalIntentRef.current = false;
+    lastXRef.current = null;
   };
 
   const onMouseDown = (e) => {
+    if (shouldIgnoreGestureTarget(e.target)) return;
     setIsDragging(true);
     setTouchEnd(null);
     setTouchStart(e.clientX);
+    startYRef.current = e.clientY;
+    isHorizontalIntentRef.current = false;
+    lastXRef.current = e.clientX;
   };
 
   const onMouseMove = (e) => {
     if (!isDragging) return;
-    setTouchEnd(e.clientX);
+    const dx = Math.abs(e.clientX - (touchStart ?? e.clientX));
+    const dy = Math.abs(e.clientY - (startYRef.current ?? e.clientY));
+    if (!isHorizontalIntentRef.current && dx > 6 && dx > dy) {
+      isHorizontalIntentRef.current = true;
+    }
+    if (isHorizontalIntentRef.current) {
+      setTouchEnd(e.clientX);
+      lastXRef.current = e.clientX;
+    }
   };
 
-  const onMouseUp = () => {
+  const onMouseUp = (e) => {
     if (!isDragging) return;
     setIsDragging(false);
-    if (!touchStart || !touchEnd) return;
-    handleSwipe(touchStart - touchEnd);
+    if (touchStart === null) return;
+    const endX = (touchEnd ?? lastXRef.current ?? e?.clientX);
+    if (endX === null || endX === undefined) return;
+    const distance = touchStart - endX;
+    // Para mouse, se arrastou bastante horizontal, considera swipe
+    const dy = Math.abs((e?.clientY ?? 0) - (startYRef.current ?? (e?.clientY ?? 0)));
+    const dx = Math.abs(distance);
+    const shouldTreatAsHorizontal = isHorizontalIntentRef.current || (dx > dy);
+    if (shouldTreatAsHorizontal && Math.abs(distance) >= minSwipeDistance) {
+      handleSwipe(distance);
+    }
     setTouchStart(null);
     setTouchEnd(null);
+    startYRef.current = null;
+    isHorizontalIntentRef.current = false;
+    lastXRef.current = null;
   };
 
   const onMouseLeave = () => {
     setIsDragging(false);
     setTouchStart(null);
     setTouchEnd(null);
+    startYRef.current = null;
+    isHorizontalIntentRef.current = false;
+    lastXRef.current = null;
   };
+
+  // Ao trocar o modo, "encaixa" o anchor no começo do período pra evitar inconsistência.
+  useEffect(() => {
+    setAnchorDate((prev) => {
+      if (mode === 'day') return prev;
+      if (mode === 'week') return startOfWeek(prev, { weekStartsOn: 1 });
+      return startOfMonth(prev);
+    });
+  }, [mode]);
 
   const tagById = useMemo(() => {
     const map = new Map();
     tags.forEach(t => map.set(t.id, t));
     return map;
+  }, [tags]);
+
+  const tagDots = useMemo(() => {
+    // Inclui o "Sem tag" como um dot cinza, além das tags do usuário
+    const list = [{ id: NO_TAG_ID, name: 'Sem tag', color: '#9CA3AF' }, ...tags];
+    return list;
   }, [tags]);
 
   const normalizedQuery = useMemo(() => normalizeText(query), [query]);
@@ -124,7 +222,13 @@ export function UpcomingEvents({ events, tags }) {
     // 2) Tags acumulativas
     const tagFiltered = selectedTagIds.length === 0
       ? inWindow
-      : inWindow.filter(e => e.tag_id && selectedTagIds.includes(e.tag_id));
+      : inWindow.filter(e => {
+        // Tag normal
+        if (e.tag_id && selectedTagIds.includes(e.tag_id)) return true;
+        // Sem tag
+        if (!e.tag_id && selectedTagIds.includes(NO_TAG_ID)) return true;
+        return false;
+      });
 
     // 3) Busca textual inteligente
     if (!normalizedQuery) {
@@ -196,6 +300,13 @@ export function UpcomingEvents({ events, tags }) {
   return (
     <section
       className="bg-card/80 backdrop-blur-md border border-border shadow-sm rounded-2xl overflow-hidden"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
     >
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border bg-background/40">
@@ -226,23 +337,25 @@ export function UpcomingEvents({ events, tags }) {
               </div>
 
               {/* Tag chips (dots) */}
-              <div className="flex items-center gap-1.5">
-                {tags.map(tag => {
-                  const selected = selectedTagIds.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      onClick={() => toggleTag(tag.id)}
-                      title={tag.name}
-                      className={cn(
-                        'w-5 h-5 rounded-full border transition-all',
-                        selected ? 'ring-2 ring-foreground/40 scale-110' : 'opacity-70 hover:opacity-100',
-                        'active:scale-95'
-                      )}
-                      style={{ backgroundColor: tag.color, borderColor: selected ? tag.color : 'rgba(0,0,0,0.1)' }}
-                    />
-                  );
-                })}
+              <div className="w-full flex items-center justify-center">
+                <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                  {tagDots.map(tag => {
+                    const selected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleTag(tag.id)}
+                        title={tag.name}
+                        className={cn(
+                          'w-7 h-7 rounded-full border transition-all',
+                          selected ? 'ring-2 ring-foreground/40 scale-110' : 'opacity-80 hover:opacity-100',
+                          'active:scale-95'
+                        )}
+                        style={{ backgroundColor: tag.color, borderColor: selected ? tag.color : 'rgba(0,0,0,0.15)' }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -280,7 +393,7 @@ export function UpcomingEvents({ events, tags }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por título, tag, data (15/03) ou dia (seg)…"
-            className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-background/70 border border-border outline-none focus:border-primary/60 transition-all text-sm"
+            className="w-full pl-9 pr-10 py-2.5 rounded-xl bg-background/70 border border-border outline-none focus:border-primary/60 transition-all text-sm select-text"
           />
           {query && (
             <button
@@ -295,16 +408,7 @@ export function UpcomingEvents({ events, tags }) {
       </div>
 
       {/* Body (swipe area) */}
-      <div
-        className="p-4 sm:p-5 touch-pan-y select-none"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseLeave}
-      >
+      <div className="p-4 sm:p-5 touch-pan-y select-none">
         {grouped.length === 0 ? (
           <div className="text-sm text-muted-foreground text-center py-10">
             Nenhum evento neste intervalo.
@@ -332,10 +436,15 @@ export function UpcomingEvents({ events, tags }) {
                           <div className="text-sm font-medium text-foreground truncate">{ev.title}</div>
                           <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
                             <span>{format(parseISO(ev.date), 'dd/MM/yyyy')}</span>
-                            {tag && (
+                            {tag ? (
                               <span className="inline-flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.color }} />
                                 <span className="truncate">{tag.name}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+                                <span className="truncate">Sem tag</span>
                               </span>
                             )}
                           </div>

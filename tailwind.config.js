@@ -8,21 +8,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "#FDFBF7",
-        foreground: "#292524", // Stone 800
-        card: "#FFFFFF",
-        "card-foreground": "#292524",
-        primary: "#A7C957", // Sage Green as primary action color
-        "primary-foreground": "#FFFFFF",
-        secondary: "#E5E5E5", // Sand
-        "secondary-foreground": "#292524",
-        muted: "#F5F5F4", // Stone 100
-        "muted-foreground": "#78716C", // Stone 500
-        accent: "#C77DFF", // Lavender
-        destructive: "#E07A5F", // Terracotta
-        border: "#E5E5E5",
-        input: "#F5F5F4",
-        ring: "#A7C957",
+        // Cores via CSS variables (permite tema claro/escuro robusto)
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        card: "hsl(var(--card))",
+        "card-foreground": "hsl(var(--card-foreground))",
+        primary: "hsl(var(--primary))",
+        "primary-foreground": "hsl(var(--primary-foreground))",
+        secondary: "hsl(var(--secondary))",
+        "secondary-foreground": "hsl(var(--secondary-foreground))",
+        muted: "hsl(var(--muted))",
+        "muted-foreground": "hsl(var(--muted-foreground))",
+        accent: "hsl(var(--accent))",
+        destructive: "hsl(var(--destructive))",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
