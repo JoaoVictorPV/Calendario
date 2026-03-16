@@ -11,11 +11,12 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Copy, MessageSquareText, MousePointerClick, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, MessageSquareText, MousePointerClick, RefreshCcw, Search, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { normalizeText } from '../lib/text';
 import { formatWindowLabel, getWindowStart, shiftAnchorDate, tryParseDateQuery, tryParseWeekday } from '../lib/dateSearch';
 import { getNotesForEvents } from '../lib/notes';
+import { loadUserPrefs, saveUserPrefs } from '../lib/userPrefs';
 
 const MODES = [
   { key: 'day', label: 'Dia' },
@@ -48,6 +49,7 @@ export function UpcomingEvents({ events, tags, session }) {
   // Busca + filtros
   const [query, setQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]); // acumulativo
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   // Swipe/drag unificado (mesma lógica do Ensinamentos)
   const [touchStart, setTouchStart] = useState(null);
@@ -204,6 +206,33 @@ export function UpcomingEvents({ events, tags, session }) {
     return list;
   }, [tags]);
 
+  // Preferências: por padrão, tudo selecionado.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!session?.user?.id) return;
+      const prefs = await loadUserPrefs(session.user.id);
+      const saved = prefs?.upcoming_selectedTagIds;
+
+      if (!alive) return;
+      if (Array.isArray(saved)) {
+        // pode ser [] (usuário limpou tudo) => respeitar
+        setSelectedTagIds(saved);
+      } else {
+        // default: todos
+        setSelectedTagIds(tagDots.map(t => t.id));
+      }
+      setPrefsLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, [session?.user?.id, tagDots]);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    if (!session?.user?.id) return;
+    saveUserPrefs(session.user.id, { upcoming_selectedTagIds: selectedTagIds });
+  }, [selectedTagIds, prefsLoaded, session?.user?.id]);
+
   const normalizedQuery = useMemo(() => normalizeText(query), [query]);
 
   // Se a busca for uma data válida, “pula” anchorDate para ela (experiência premium)
@@ -221,15 +250,16 @@ export function UpcomingEvents({ events, tags, session }) {
     });
 
     // 2) Tags acumulativas
-    const tagFiltered = selectedTagIds.length === 0
-      ? inWindow
-      : inWindow.filter(e => {
-        // Tag normal
-        if (e.tag_id && selectedTagIds.includes(e.tag_id)) return true;
-        // Sem tag
-        if (!e.tag_id && selectedTagIds.includes(NO_TAG_ID)) return true;
-        return false;
-      });
+    // Se nada estiver selecionado, não mostra nada (usuário limpou tudo)
+    if (selectedTagIds.length === 0) return [];
+
+    const tagFiltered = inWindow.filter(e => {
+      // Tag normal
+      if (e.tag_id && selectedTagIds.includes(e.tag_id)) return true;
+      // Sem tag
+      if (!e.tag_id && selectedTagIds.includes(NO_TAG_ID)) return true;
+      return false;
+    });
 
     // 3) Busca textual inteligente
     if (!normalizedQuery) {
@@ -288,13 +318,9 @@ export function UpcomingEvents({ events, tags, session }) {
     setSelectedTagIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const selectAllTags = () => {
-    setSelectedTagIds(tagDots.map(t => t.id));
-  };
+  const selectAllTags = () => setSelectedTagIds(tagDots.map(t => t.id));
 
-  const unselectAllTags = () => {
-    setSelectedTagIds([]);
-  };
+  const unselectAllTags = () => setSelectedTagIds([]);
 
   const clearSearch = () => setQuery('');
 
@@ -305,6 +331,13 @@ export function UpcomingEvents({ events, tags, session }) {
     const { start: wStart, end: wEnd } = buildInterval(start, mode);
     return !isWithinInterval(today, { start: wStart, end: wEnd });
   }, [effectiveAnchorDate, mode]);
+
+  const resetToToday = () => {
+    setQuery('');
+    setAnchorDate(startOfToday());
+    setMode('week');
+    selectAllTags();
+  };
 
   // Observações: buscamos as notas dos eventos exibidos (para ícone e modal)
   const [notesByEventId, setNotesByEventId] = useState({});
@@ -368,18 +401,18 @@ export function UpcomingEvents({ events, tags, session }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">Próximos eventos</h2>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{windowLabel}</span>
+              <span className="text-xs font-medium text-foreground/80 bg-secondary/40 border border-border px-2 py-0.5 rounded-lg whitespace-nowrap">{windowLabel}</span>
             </div>
 
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {/* Mode selector */}
+            {/* Mode selector (centralizado) */}
+            <div className="mt-3 w-full flex items-center justify-center">
               <div className="flex rounded-xl bg-secondary/50 p-1 border border-border">
                 {MODES.map(m => (
                   <button
                     key={m.key}
                     onClick={() => setMode(m.key)}
                     className={cn(
-                      'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
+                      'px-4 py-1.5 text-xs font-semibold rounded-lg transition-all',
                       mode === m.key
                         ? 'bg-background shadow-sm text-foreground'
                         : 'text-muted-foreground hover:text-foreground'
@@ -389,66 +422,66 @@ export function UpcomingEvents({ events, tags, session }) {
                   </button>
                 ))}
               </div>
+            </div>
 
-              {/* Tag chips (dots) */}
-              <div className="w-full flex items-center justify-center">
-                {/* Grid 3-colunas: mantém alinhado/centralizado mesmo com muitas tags */}
-                <div className="grid grid-cols-3 gap-2 justify-items-center content-center">
-                  <button
-                    type="button"
-                    data-no-swipe
-                    onClick={selectAllTags}
-                    title="Selecionar todas"
-                    className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
-                  >
-                    <MousePointerClick size={14} className="text-foreground" />
-                  </button>
-                  <button
-                    type="button"
-                    data-no-swipe
-                    onClick={unselectAllTags}
-                    title="Limpar seleção"
-                    className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
-                  >
-                    <X size={14} className="text-foreground" />
-                  </button>
+            {/* Tag chips (mais horizontal e menos vertical) */}
+            <div className="mt-3 w-full flex items-center justify-center">
+              <div className="flex items-center justify-center gap-2 max-w-full overflow-x-auto no-scrollbar py-1">
+                <button
+                  type="button"
+                  data-no-swipe
+                  onClick={selectAllTags}
+                  title="Selecionar todas"
+                  className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
+                >
+                  <MousePointerClick size={14} className="text-foreground" />
+                </button>
+                <button
+                  type="button"
+                  data-no-swipe
+                  onClick={unselectAllTags}
+                  title="Limpar seleção"
+                  className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
+                >
+                  <X size={14} className="text-foreground" />
+                </button>
 
-                  {tagDots.map(tag => {
-                    const selected = selectedTagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        data-no-swipe
-                        onClick={() => toggleTag(tag.id)}
-                        title={tag.name}
-                        className={cn(
-                          'w-7 h-7 rounded-full border transition-all',
-                          selected ? 'ring-2 ring-foreground/40 scale-110' : 'opacity-80 hover:opacity-100',
-                          'active:scale-95'
-                        )}
-                        style={{ backgroundColor: tag.color, borderColor: selected ? tag.color : 'rgba(0,0,0,0.15)' }}
-                      />
-                    );
-                  })}
-                </div>
+                {tagDots.map(tag => {
+                  const selected = selectedTagIds.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      data-no-swipe
+                      onClick={() => toggleTag(tag.id)}
+                      title={tag.name}
+                      className={cn(
+                        'w-7 h-7 rounded-full border transition-all',
+                        selected ? 'ring-2 ring-foreground/40 scale-110' : 'opacity-70 hover:opacity-100',
+                        'active:scale-95'
+                      )}
+                      style={{ backgroundColor: tag.color, borderColor: selected ? tag.color : 'rgba(0,0,0,0.15)' }}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {showBackToToday && (
-              <button
-                onClick={() => setAnchorDate(startOfToday())}
-                className="hidden sm:inline-flex px-3 py-1.5 rounded-xl text-xs bg-secondary/50 hover:bg-secondary border border-border text-muted-foreground"
-              >
-                Hoje
-              </button>
-            )}
+            <button
+              onClick={resetToToday}
+              className="p-2 rounded-xl hover:bg-secondary/60 border border-border bg-background/60"
+              title="Hoje"
+              data-no-swipe
+            >
+              <RefreshCcw size={18} className="text-muted-foreground" />
+            </button>
             <button
               onClick={() => setAnchorDate(prev => shiftAnchorDate(prev, mode, -1))}
               className="p-2 rounded-xl hover:bg-secondary/60 border border-border bg-background/60"
               title="Anterior"
+              data-no-swipe
             >
               <ChevronLeft size={18} className="text-muted-foreground" />
             </button>
@@ -456,6 +489,7 @@ export function UpcomingEvents({ events, tags, session }) {
               onClick={() => setAnchorDate(prev => shiftAnchorDate(prev, mode, +1))}
               className="p-2 rounded-xl hover:bg-secondary/60 border border-border bg-background/60"
               title="Próximo"
+              data-no-swipe
             >
               <ChevronRight size={18} className="text-muted-foreground" />
             </button>

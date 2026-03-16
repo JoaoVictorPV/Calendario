@@ -66,3 +66,22 @@ create policy "Users can update their own event notes" on event_notes
 
 create policy "Users can delete their own event notes" on event_notes
   for delete using (auth.uid() = user_id);
+
+-- Preferências do usuário (ex.: seleção de tags em Próximos eventos)
+create table user_prefs (
+  user_id uuid references auth.users primary key,
+  prefs jsonb not null default '{}'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table user_prefs enable row level security;
+
+create policy "Users can view their own prefs" on user_prefs
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own prefs" on user_prefs
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own prefs" on user_prefs
+  for update using (auth.uid() = user_id);
