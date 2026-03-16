@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { X, Trash2, Plus, Check, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { predefinedTagColors } from '../lib/tagColors';
 
 export function DayModal({ date, onClose, events, tags, setEvents, setTags, session }) {
   const dateKey = format(date, 'yyyy-MM-dd');
@@ -16,15 +17,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#A7C957'); // Default Sage
-
-  const predefinedColors = [
-    '#A7C957', // Sage
-    '#C77DFF', // Lavender
-    '#E07A5F', // Terracotta
-    '#E9C46A', // Darker Yellow for contrast
-    '#81B0FE', // Soft Blue
-    '#78716C', // Stone
-  ];
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
@@ -74,7 +66,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
       <div className="bg-background w-full max-w-lg h-[90vh] sm:h-auto sm:max-h-[85vh] rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 border border-border">
         
         {/* Header */}
-        <div className="p-6 border-b border-border flex items-center justify-between bg-white/50">
+        <div className="p-6 border-b border-border flex items-center justify-between bg-card/60">
           <div>
             <h3 className="text-2xl font-medium text-foreground">
               {format(date, "d 'de' MMMM", { locale: ptBR })}
@@ -97,7 +89,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                 <input
                   type="text"
                   placeholder="Novo evento..."
-                  className="flex-1 bg-white border border-border rounded-xl px-4 py-3 outline-none focus:border-primary transition-all shadow-sm text-foreground placeholder:text-muted-foreground/50"
+                  className="flex-1 bg-background border border-border rounded-xl px-4 py-3 outline-none focus:border-primary transition-all shadow-sm text-foreground placeholder:text-muted-foreground/50"
                   value={newEventTitle}
                   onChange={e => setNewEventTitle(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAddEvent(e)}
@@ -119,7 +111,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap",
                      selectedTagId === null 
                        ? "bg-foreground text-background border-foreground" 
-                       : "bg-white border-border text-muted-foreground hover:border-foreground/30"
+                       : "bg-background border-border text-muted-foreground hover:border-foreground/30"
                    )}
                 >
                   Sem Tag
@@ -132,10 +124,10 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                        "px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 whitespace-nowrap shadow-sm",
                        selectedTagId === tag.id
                          ? "border-transparent ring-1 ring-offset-1"
-                         : "bg-white border-border text-muted-foreground hover:opacity-80"
+                       : "bg-background border-border text-muted-foreground hover:opacity-80"
                      )}
                      style={{ 
-                       backgroundColor: selectedTagId === tag.id ? tag.color : 'white',
+                       backgroundColor: selectedTagId === tag.id ? tag.color : 'transparent',
                        color: selectedTagId === tag.id ? '#FFF' : '',
                        borderColor: selectedTagId === tag.id ? tag.color : ''
                      }}
@@ -157,7 +149,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                  <div className="flex gap-2 mb-3">
                    <input 
                      placeholder="Nome da tag (Ex: Trabalho)"
-                     className="flex-1 bg-white border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                     className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
                      value={newTagName}
                      onChange={e => setNewTagName(e.target.value)}
                    />
@@ -169,7 +161,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                    </button>
                  </div>
                  <div className="flex gap-2 flex-wrap">
-                   {predefinedColors.map(color => (
+                   {predefinedTagColors.map(color => (
                      <button
                        key={color}
                        onClick={() => setNewTagColor(color)}
@@ -197,7 +189,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
               dayEvents.map(event => {
                 const tag = tags.find(t => t.id === event.tag_id);
                 return (
-                  <div key={event.id} className="group flex items-start gap-3 p-3 rounded-xl bg-white border border-border shadow-sm hover:shadow-md transition-all">
+                  <div key={event.id} className="group flex items-start gap-3 p-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
                      <div 
                        className="w-3 h-3 rounded-full mt-1.5 shrink-0"
                        style={{ backgroundColor: tag ? tag.color : '#E5E5E5' }} 

@@ -3,11 +3,11 @@ import { supabase } from './lib/supabase';
 import { Login } from './components/Login';
 import { Calendar } from './components/Calendar';
 import { DayModal } from './components/DayModal';
-import { Timeline } from './components/Timeline';
+import { UpcomingEvents } from './components/UpcomingEvents';
 import { TagManager } from './components/TagManager';
 import { BatchModal } from './components/BatchModal';
 import { migrateLocalData } from './lib/migration';
-import { Sun, LogOut, List, Tag, CalendarPlus } from 'lucide-react';
+import { Moon, Sun, LogOut, Tag, CalendarPlus } from 'lucide-react';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -20,9 +20,27 @@ function App() {
   
   // UI State
   const [selectedDate, setSelectedDate] = useState(null);
-  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      return localStorage.getItem('clepsidra_theme') === 'dark';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) root.classList.add('dark');
+    else root.classList.remove('dark');
+    try {
+      localStorage.setItem('clepsidra_theme', isDark ? 'dark' : 'light');
+    } catch {
+      // ignore
+    }
+  }, [isDark]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -60,21 +78,13 @@ function App() {
   if (!session) return <Login />;
 
   return (
-    <div className="min-h-screen font-sans selection:bg-primary/20 pb-20 sm:pb-0 relative">
-      
-      {/* Background Wallpaper */}
-      <div 
-        className="fixed inset-0 z-0 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/bg.jpg)' }}
-      >
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm" />
-      </div>
+    <div className="min-h-screen font-sans selection:bg-primary/20 pb-20 sm:pb-0 relative bg-background text-foreground">
 
       {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-border shadow-sm">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-card/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="max-w-xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white rounded-xl shadow-sm border border-border">
+            <div className="p-2 bg-card rounded-xl shadow-sm border border-border">
               <Sun className="text-primary" size={24} />
             </div>
             <h1 className="text-xl font-medium tracking-tight text-foreground uppercase">
@@ -83,6 +93,13 @@ function App() {
           </div>
           
           <div className="flex gap-2">
+            <button
+              onClick={() => setIsDark(v => !v)}
+              className="p-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
+              title={isDark ? 'Modo claro' : 'Modo escuro'}
+            >
+              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
              <button
               onClick={handleLogout}
               className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-destructive transition-all"
@@ -92,24 +109,17 @@ function App() {
             </button>
             <button
               onClick={() => setIsTagManagerOpen(true)}
-              className="p-2 rounded-lg bg-white border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
+              className="p-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
               title="Gerenciar Tags"
             >
               <Tag size={20} />
             </button>
             <button
               onClick={() => setIsBatchModalOpen(true)}
-              className="p-2 rounded-lg bg-white border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
+              className="p-2 rounded-lg bg-card border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
               title="Adicionar em Massa"
             >
               <CalendarPlus size={20} />
-            </button>
-            <button
-              onClick={() => setIsTimelineOpen(true)}
-              className="p-2 rounded-lg bg-white border border-border hover:bg-secondary transition-all shadow-sm text-foreground"
-              title="Timeline"
-            >
-              <List size={20} />
             </button>
           </div>
         </div>
@@ -123,6 +133,11 @@ function App() {
           events={events}
           tags={tags}
           onSelectDate={setSelectedDate}
+        />
+
+        <UpcomingEvents
+          events={events}
+          tags={tags}
         />
       </div>
 
@@ -139,14 +154,6 @@ function App() {
         />
       )}
 
-      {isTimelineOpen && (
-          <Timeline 
-            onClose={() => setIsTimelineOpen(false)}
-            events={events}
-            tags={tags}
-          />
-      )}
-      
       {isTagManagerOpen && (
         <TagManager 
           onClose={() => setIsTagManagerOpen(false)}

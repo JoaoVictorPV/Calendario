@@ -1,0 +1,18 @@
+{
+  "name": "Clepsidra",
+  "short_name": "Clepsidra",
+  "description": "Agenda online (Clepsidra)",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#A7C957",
+  "icons": [
+    {
+      "src": "/sun.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

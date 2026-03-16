@@ -2,19 +2,11 @@ import React, { useState } from 'react';
 import { X, Trash2, Tag, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { predefinedTagColors } from '../lib/tagColors';
 
 export function TagManager({ onClose, tags, setTags }) {
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#A7C957'); // Default Sage
-
-  const predefinedColors = [
-    '#A7C957', // Sage
-    '#C77DFF', // Lavender
-    '#E07A5F', // Terracotta
-    '#E9C46A', // Darker Yellow for contrast
-    '#81B0FE', // Soft Blue
-    '#78716C', // Stone
-  ];
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
@@ -43,7 +35,7 @@ export function TagManager({ onClose, tags, setTags }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in">
       <div className="bg-background w-full max-w-sm rounded-2xl shadow-xl border border-border flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
         
-        <div className="p-4 border-b border-border flex items-center justify-between bg-white">
+        <div className="p-4 border-b border-border flex items-center justify-between bg-card/60">
           <h2 className="text-lg font-medium flex items-center gap-2 text-foreground">
             <Tag size={18} className="text-primary" /> Gerenciar Tags
           </h2>
@@ -59,7 +51,7 @@ export function TagManager({ onClose, tags, setTags }) {
              <div className="flex gap-2">
                <input 
                  placeholder="Nova Tag..."
-                 className="flex-1 bg-white border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition-all text-foreground"
+                 className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition-all text-foreground"
                  value={newTagName}
                  onChange={e => setNewTagName(e.target.value)}
                  onKeyDown={e => e.key === 'Enter' && handleCreateTag()}
@@ -74,7 +66,7 @@ export function TagManager({ onClose, tags, setTags }) {
              </div>
              
              <div className="flex gap-2 flex-wrap justify-center">
-               {predefinedColors.map(color => (
+               {predefinedTagColors.map(color => (
                  <button
                    key={color}
                    onClick={() => setNewTagColor(color)}
@@ -96,7 +88,7 @@ export function TagManager({ onClose, tags, setTags }) {
                <p className="text-center text-muted-foreground py-4 text-sm">Nenhuma tag criada.</p>
              ) : (
                tags.map(tag => (
-                 <div key={tag.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-border shadow-sm hover:shadow-md transition-all">
+                 <div key={tag.id} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3">
                       <div 
                         className="w-4 h-4 rounded-full ring-1 ring-border"

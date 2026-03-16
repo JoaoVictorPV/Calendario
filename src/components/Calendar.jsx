@@ -104,7 +104,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
       <div className="flex items-center justify-between px-2">
         <button 
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          className="p-2 hover:bg-white rounded-full transition-colors text-muted-foreground hover:text-foreground hover:shadow-sm"
+          className="p-2 hover:bg-secondary/60 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:shadow-sm"
         >
           <ChevronLeft size={20} />
         </button>
@@ -113,7 +113,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
         </h2>
         <button 
           onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          className="p-2 hover:bg-white rounded-full transition-colors text-muted-foreground hover:text-foreground hover:shadow-sm"
+          className="p-2 hover:bg-secondary/60 rounded-full transition-colors text-muted-foreground hover:text-foreground hover:shadow-sm"
         >
           <ChevronRight size={20} />
         </button>
@@ -150,7 +150,7 @@ export function Calendar({ currentMonth, setCurrentMonth, events, tags, onSelect
               }}
               className={cn(
                 "aspect-[4/5] rounded-xl flex flex-col items-center justify-start pt-2 gap-1 transition-all border relative overflow-hidden",
-                isCurrentMonth ? "bg-white border-border/50 shadow-md" : "bg-transparent border-transparent opacity-40",
+                isCurrentMonth ? "bg-card border-border/50 shadow-md" : "bg-transparent border-transparent opacity-40",
                 isTodayDate && "ring-2 ring-primary ring-offset-2 ring-offset-background border-primary/50",
                 "hover:border-primary/30 hover:shadow-lg active:scale-95"
               )}
