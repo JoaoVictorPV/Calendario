@@ -397,74 +397,12 @@ export function UpcomingEvents({ events, tags, session }) {
     >
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-border bg-background/40">
+        {/* Linha 1: título + navegação */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">Próximos eventos</h2>
-              <span className="text-xs font-medium text-foreground/80 bg-secondary/40 border border-border px-2 py-0.5 rounded-lg whitespace-nowrap">{windowLabel}</span>
-            </div>
-
-            {/* Mode selector (centralizado) */}
-            <div className="mt-3 w-full flex items-center justify-center">
-              <div className="flex rounded-xl bg-secondary/50 p-1 border border-border">
-                {MODES.map(m => (
-                  <button
-                    key={m.key}
-                    onClick={() => setMode(m.key)}
-                    className={cn(
-                      'px-4 py-1.5 text-xs font-semibold rounded-lg transition-all',
-                      mode === m.key
-                        ? 'bg-background shadow-sm text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tag chips (mais horizontal e menos vertical) */}
-            <div className="mt-3 w-full flex items-center justify-center">
-              <div className="flex items-center justify-center gap-2 max-w-full overflow-x-auto no-scrollbar py-1">
-                <button
-                  type="button"
-                  data-no-swipe
-                  onClick={selectAllTags}
-                  title="Selecionar todas"
-                  className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
-                >
-                  <MousePointerClick size={14} className="text-foreground" />
-                </button>
-                <button
-                  type="button"
-                  data-no-swipe
-                  onClick={unselectAllTags}
-                  title="Limpar seleção"
-                  className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
-                >
-                  <X size={14} className="text-foreground" />
-                </button>
-
-                {tagDots.map(tag => {
-                  const selected = selectedTagIds.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      data-no-swipe
-                      onClick={() => toggleTag(tag.id)}
-                      title={tag.name}
-                      className={cn(
-                        'w-7 h-7 rounded-full border transition-all',
-                        selected ? 'ring-2 ring-foreground/40 scale-110' : 'opacity-70 hover:opacity-100',
-                        'active:scale-95'
-                      )}
-                      style={{ backgroundColor: tag.color, borderColor: selected ? tag.color : 'rgba(0,0,0,0.15)' }}
-                    />
-                  );
-                })}
-              </div>
+              <span className="text-xs font-medium text-foreground/80 bg-secondary/40 border border-border px-2.5 py-1 rounded-lg whitespace-nowrap">{windowLabel}</span>
             </div>
           </div>
 
@@ -493,6 +431,77 @@ export function UpcomingEvents({ events, tags, session }) {
             >
               <ChevronRight size={18} className="text-muted-foreground" />
             </button>
+          </div>
+        </div>
+
+        {/* Linha 2: seletor de modo (100% centralizado na aba toda) */}
+        <div className="mt-4 w-full flex items-center justify-center">
+          <div className="flex rounded-2xl bg-secondary/50 p-1 border border-border w-full max-w-[520px] justify-center">
+            {MODES.map(m => (
+              <button
+                key={m.key}
+                onClick={() => setMode(m.key)}
+                className={cn(
+                  'flex-1 px-4 py-2 text-xs font-semibold rounded-xl transition-all',
+                  mode === m.key
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Linha 3: tags (mais espaçadas, sem corte nas bordas) */}
+        <div className="mt-4 w-full flex items-center justify-center">
+          <div className="w-full max-w-[720px]">
+            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar px-2 py-2 rounded-2xl bg-secondary/20 border border-border/60">
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  data-no-swipe
+                  onClick={selectAllTags}
+                  title="Selecionar todas"
+                  className="w-8 h-8 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
+                >
+                  <MousePointerClick size={15} className="text-foreground" />
+                </button>
+                <button
+                  type="button"
+                  data-no-swipe
+                  onClick={unselectAllTags}
+                  title="Limpar seleção"
+                  className="w-8 h-8 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
+                >
+                  <X size={15} className="text-foreground" />
+                </button>
+              </div>
+
+              <div className="h-7 w-px bg-border/70 shrink-0" />
+
+              <div className="flex items-center gap-3 shrink-0">
+                {tagDots.map(tag => {
+                  const selected = selectedTagIds.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      data-no-swipe
+                      onClick={() => toggleTag(tag.id)}
+                      title={tag.name}
+                      className={cn(
+                        'w-8 h-8 rounded-full border transition-all',
+                        selected ? 'ring-2 ring-foreground/40 scale-110' : 'opacity-75 hover:opacity-100',
+                        'active:scale-95'
+                      )}
+                      style={{ backgroundColor: tag.color, borderColor: selected ? tag.color : 'rgba(0,0,0,0.15)' }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
