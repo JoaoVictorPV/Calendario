@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { X, Trash2, Plus, Check, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { predefinedTagColors } from '../lib/tagColors';
+import { getEventNote, upsertEventNote } from '../lib/notes';
 
 export function DayModal({ date, onClose, events, tags, setEvents, setTags, session }) {
   const dateKey = format(date, 'yyyy-MM-dd');
   const dayEvents = events.filter(e => e.date === dateKey);
+
+  // Observações (por evento selecionado)
+  const [selectedEventIdForNote, setSelectedEventIdForNote] = useState(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteStatus, setNoteStatus] = useState('idle'); // idle | saving | saved
+  const saveTimerRef = useRef(null);
 
   const [newEventTitle, setNewEventTitle] = useState('');
   const [selectedTagId, setSelectedTagId] = useState(null);
@@ -48,18 +55,74 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
     if (data) {
       setEvents([...events, data[0]]);
       setNewEventTitle('');
+      // Seleciona automaticamente o novo evento para observações
+      setSelectedEventIdForNote(data[0].id);
     }
   };
 
   const handleDeleteEvent = async (id) => {
     await supabase.from('events').delete().eq('id', id);
     setEvents(events.filter(e => e.id !== id));
+
+    if (selectedEventIdForNote === id) {
+      setSelectedEventIdForNote(null);
+      setNoteDraft('');
+    }
   };
 
   const handleUpdateEvent = async (id, newTitle) => {
     await supabase.from('events').update({ title: newTitle }).eq('id', id);
     setEvents(events.map(e => e.id === id ? { ...e, title: newTitle } : e));
   };
+
+  // Carrega observação quando troca o evento selecionado
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!selectedEventIdForNote) {
+        if (alive) setNoteDraft('');
+        return;
+      }
+      const content = await getEventNote({ userId: session.user.id, eventId: selectedEventIdForNote });
+      if (alive) {
+        setNoteDraft(content || '');
+        setNoteStatus('idle');
+      }
+    })();
+    return () => { alive = false; };
+  }, [selectedEventIdForNote, session.user.id]);
+
+  // Auto-save (debounce)
+  useEffect(() => {
+    if (!selectedEventIdForNote) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setNoteStatus('saving');
+
+    saveTimerRef.current = setTimeout(async () => {
+      await upsertEventNote({
+        userId: session.user.id,
+        eventId: selectedEventIdForNote,
+        content: noteDraft,
+      });
+
+      // Notifica outras áreas (ex.: Próximos eventos) para atualizar o ícone/nota.
+      try {
+        window.dispatchEvent(new CustomEvent('clepsidra_note_updated', {
+          detail: { eventId: selectedEventIdForNote }
+        }));
+      } catch {
+        // ignore
+      }
+
+      setNoteStatus('saved');
+      setTimeout(() => setNoteStatus('idle'), 800);
+    }, 600);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [noteDraft, selectedEventIdForNote, session.user.id]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
@@ -175,6 +238,47 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                  </div>
                </div>
              )}
+          </div>
+
+          {/* Observações */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-foreground">Observações</h4>
+              <span className="text-[11px] text-muted-foreground">
+                {noteStatus === 'saving' ? 'salvando…' : noteStatus === 'saved' ? 'salvo' : ''}
+              </span>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              {dayEvents.map(ev => (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => setSelectedEventIdForNote(ev.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-xl text-xs font-medium border transition-all',
+                    selectedEventIdForNote === ev.id
+                      ? 'bg-primary text-primary-foreground border-transparent'
+                      : 'bg-background border-border text-muted-foreground hover:bg-secondary/40'
+                  )}
+                  title="Selecionar evento para observações"
+                >
+                  {ev.title}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              disabled={!selectedEventIdForNote}
+              placeholder={selectedEventIdForNote ? 'Escreva suas observações…' : 'Selecione um evento acima para adicionar observações.'}
+              className={cn(
+                'w-full min-h-[96px] max-h-[180px] resize-y rounded-2xl px-4 py-3 border outline-none transition-all text-sm',
+                'bg-background border-border focus:border-primary/60',
+                !selectedEventIdForNote && 'opacity-60'
+              )}
+            />
           </div>
 
           <div className="h-px bg-border w-full" />

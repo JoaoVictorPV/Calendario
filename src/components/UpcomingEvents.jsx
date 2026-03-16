@@ -11,10 +11,11 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, MousePointerClick, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, MessageSquareText, MousePointerClick, Search, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { normalizeText } from '../lib/text';
 import { formatWindowLabel, getWindowStart, shiftAnchorDate, tryParseDateQuery, tryParseWeekday } from '../lib/dateSearch';
+import { getNotesForEvents } from '../lib/notes';
 
 const MODES = [
   { key: 'day', label: 'Dia' },
@@ -40,7 +41,7 @@ function buildInterval(anchorDate, mode) {
   return { start, end };
 }
 
-export function UpcomingEvents({ events, tags }) {
+export function UpcomingEvents({ events, tags, session }) {
   const [mode, setMode] = useState('week');
   const [anchorDate, setAnchorDate] = useState(startOfToday());
 
@@ -305,6 +306,51 @@ export function UpcomingEvents({ events, tags }) {
     return !isWithinInterval(today, { start: wStart, end: wEnd });
   }, [effectiveAnchorDate, mode]);
 
+  // Observações: buscamos as notas dos eventos exibidos (para ícone e modal)
+  const [notesByEventId, setNotesByEventId] = useState({});
+  const [openNote, setOpenNote] = useState(null); // { title, content }
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!session?.user?.id) return;
+      const ids = filteredEvents.map(e => e.id);
+      const map = await getNotesForEvents({ userId: session.user.id, eventIds: ids });
+      if (alive) setNotesByEventId(map);
+    })();
+    return () => { alive = false; };
+  }, [filteredEvents, session?.user?.id]);
+
+  // Reage quando o DayModal salva alguma nota
+  useEffect(() => {
+    const handler = async () => {
+      if (!session?.user?.id) return;
+      const ids = filteredEvents.map(e => e.id);
+      const map = await getNotesForEvents({ userId: session.user.id, eventIds: ids });
+      setNotesByEventId(map);
+    };
+    window.addEventListener('clepsidra_note_updated', handler);
+    return () => window.removeEventListener('clepsidra_note_updated', handler);
+  }, [filteredEvents, session?.user?.id]);
+
+  const copyNote = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // fallback
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   return (
     <section
       className="bg-card/80 backdrop-blur-md border border-border shadow-sm rounded-2xl overflow-hidden"
@@ -453,6 +499,8 @@ export function UpcomingEvents({ events, tags }) {
                 <div className="space-y-2">
                   {group.items.map(ev => {
                     const tag = ev.tag_id ? tagById.get(ev.tag_id) : null;
+                    const noteContent = notesByEventId?.[ev.id] || '';
+                    const hasNote = !!noteContent.trim();
                     return (
                       <div
                         key={ev.id}
@@ -463,7 +511,20 @@ export function UpcomingEvents({ events, tags }) {
                           style={{ backgroundColor: tag?.color ?? '#E5E5E5' }}
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-foreground truncate">{ev.title}</div>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="text-sm font-medium text-foreground truncate">{ev.title}</div>
+                            {hasNote && (
+                              <button
+                                type="button"
+                                data-no-swipe
+                                onClick={() => setOpenNote({ title: ev.title, content: noteContent })}
+                                className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
+                                title="Ver observação"
+                              >
+                                <MessageSquareText size={16} className="text-muted-foreground" />
+                              </button>
+                            )}
+                          </div>
                           <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
                             <span>{format(parseISO(ev.date), 'dd/MM/yyyy')}</span>
                             {tag ? (
@@ -493,6 +554,52 @@ export function UpcomingEvents({ events, tags }) {
           Dica: arraste para os lados para navegar por {mode === 'day' ? 'dias' : mode === 'week' ? 'semanas' : 'meses'}.
         </div>
       </div>
+
+      {/* Modal de Observação */}
+      {openNote && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setOpenNote(null);
+          }}
+          onTouchStart={(e) => {
+            if (e.target === e.currentTarget) setOpenNote(null);
+          }}
+        >
+          <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-border bg-card/60 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground truncate">{openNote.title}</div>
+                <div className="text-[11px] text-muted-foreground">Observação</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => copyNote(openNote.content)}
+                  className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
+                  title="Copiar"
+                >
+                  <Copy size={16} className="text-muted-foreground" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpenNote(null)}
+                  className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
+                  title="Fechar"
+                >
+                  <X size={16} className="text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {openNote.content}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

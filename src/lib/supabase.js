@@ -124,3 +124,6 @@ const offlineClient = {
 };
 
 export const supabase = client || offlineClient;
+
+// Exponho o modo offline (útil para feature-flags sem quebrar o app)
+export const isSupabaseOffline = isOffline;

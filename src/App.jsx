@@ -148,6 +148,7 @@ function App() {
         <UpcomingEvents
           events={events}
           tags={tags}
+          session={session}
         />
       </div>
 
