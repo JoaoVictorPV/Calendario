@@ -11,7 +11,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MousePointerClick, Search, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { normalizeText } from '../lib/text';
 import { formatWindowLabel, getWindowStart, shiftAnchorDate, tryParseDateQuery, tryParseWeekday } from '../lib/dateSearch';
@@ -287,6 +287,14 @@ export function UpcomingEvents({ events, tags }) {
     setSelectedTagIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const selectAllTags = () => {
+    setSelectedTagIds(tagDots.map(t => t.id));
+  };
+
+  const unselectAllTags = () => {
+    setSelectedTagIds([]);
+  };
+
   const clearSearch = () => setQuery('');
 
   const windowLabel = useMemo(() => formatWindowLabel(effectiveAnchorDate, mode), [effectiveAnchorDate, mode]);
@@ -338,12 +346,34 @@ export function UpcomingEvents({ events, tags }) {
 
               {/* Tag chips (dots) */}
               <div className="w-full flex items-center justify-center">
-                <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                {/* Grid 3-colunas: mantém alinhado/centralizado mesmo com muitas tags */}
+                <div className="grid grid-cols-3 gap-2 justify-items-center content-center">
+                  <button
+                    type="button"
+                    data-no-swipe
+                    onClick={selectAllTags}
+                    title="Selecionar todas"
+                    className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
+                  >
+                    <MousePointerClick size={14} className="text-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    data-no-swipe
+                    onClick={unselectAllTags}
+                    title="Limpar seleção"
+                    className="w-7 h-7 rounded-full border border-border bg-background hover:bg-secondary/50 transition-all flex items-center justify-center"
+                  >
+                    <X size={14} className="text-foreground" />
+                  </button>
+
                   {tagDots.map(tag => {
                     const selected = selectedTagIds.includes(tag.id);
                     return (
                       <button
                         key={tag.id}
+                        type="button"
+                        data-no-swipe
                         onClick={() => toggleTag(tag.id)}
                         title={tag.name}
                         className={cn(
