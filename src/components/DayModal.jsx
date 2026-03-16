@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Copy, MessageSquareText, Plus, Trash2, X } from 'lucide-react';
+import { X, Trash2, Plus, Check, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { predefinedTagColors } from '../lib/tagColors';
-import { getEventNote, getNotesForEvents, upsertEventNote } from '../lib/notes';
+import { getEventNote, upsertEventNote } from '../lib/notes';
 
 export function DayModal({ date, onClose, events, tags, setEvents, setTags, session }) {
   const dateKey = format(date, 'yyyy-MM-dd');
@@ -16,8 +16,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
   const [noteDraft, setNoteDraft] = useState('');
   const [noteStatus, setNoteStatus] = useState('idle'); // idle | saving | saved
   const saveTimerRef = useRef(null);
-
-  const [notesByEventId, setNotesByEventId] = useState({});
 
   const [newEventTitle, setNewEventTitle] = useState('');
   const [selectedTagId, setSelectedTagId] = useState(null);
@@ -77,25 +75,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
     setEvents(events.map(e => e.id === id ? { ...e, title: newTitle } : e));
   };
 
-  const [openNotePreview, setOpenNotePreview] = useState(null); // { title, content }
-
-  const copyNote = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      } catch {
-        // ignore
-      }
-    }
-  };
-
   // Carrega observação quando troca o evento selecionado
   useEffect(() => {
     let alive = true;
@@ -112,18 +91,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
     })();
     return () => { alive = false; };
   }, [selectedEventIdForNote, session.user.id]);
-
-  // Carrega notas do dia (para ícone por evento)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!session?.user?.id) return;
-      const ids = dayEvents.map(e => e.id);
-      const map = await getNotesForEvents({ userId: session.user.id, eventIds: ids });
-      if (alive) setNotesByEventId(map);
-    })();
-    return () => { alive = false; };
-  }, [dayEvents, session?.user?.id]);
 
   // Auto-save (debounce)
   useEffect(() => {
@@ -147,9 +114,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
       } catch {
         // ignore
       }
-
-      // Atualiza mapa local do DayModal também
-      setNotesByEventId(prev => ({ ...prev, [selectedEventIdForNote]: noteDraft }));
 
       setNoteStatus('saved');
       setTimeout(() => setNoteStatus('idle'), 800);
@@ -299,12 +263,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                   )}
                   title="Selecionar evento para observações"
                 >
-                  <span className="truncate max-w-[150px]">{ev.title}</span>
-                  {!!(notesByEventId?.[ev.id] || '').trim() && (
-                    <span className="ml-2 inline-flex items-center" title="Tem observação">
-                      <MessageSquareText size={14} className="text-foreground/70" />
-                    </span>
-                  )}
+                  {ev.title}
                 </button>
               ))}
             </div>
@@ -333,8 +292,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
             ) : (
               dayEvents.map(event => {
                 const tag = tags.find(t => t.id === event.tag_id);
-                const content = (notesByEventId?.[event.id] ?? (selectedEventIdForNote === event.id ? noteDraft : ''));
-                const hasNote = !!content.trim();
                 return (
                   <div key={event.id} className="group flex items-start gap-3 p-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
                      <div 
@@ -360,19 +317,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                           </span>
                         )}
                      </div>
-
-                     {/* Ícone de observação (se existir) */}
-                     {hasNote && (
-                       <button
-                         type="button"
-                         onClick={() => setOpenNotePreview({ title: event.title, content })}
-                         className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
-                         title="Ver observação"
-                       >
-                         <MessageSquareText size={16} className="text-muted-foreground" />
-                       </button>
-                     )}
-
                      <button 
                        onClick={() => handleDeleteEvent(event.id)}
                        className="sm:opacity-0 group-hover:opacity-100 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
@@ -384,52 +328,6 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
               })
             )}
           </div>
-
-          {/* Modal de Observação (no DayModal também) */}
-          {openNotePreview && (
-            <div
-              className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setOpenNotePreview(null);
-              }}
-              onTouchStart={(e) => {
-                if (e.target === e.currentTarget) setOpenNotePreview(null);
-              }}
-            >
-              <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
-                <div className="p-4 border-b border-border bg-card/60 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-foreground truncate">{openNotePreview.title}</div>
-                    <div className="text-[11px] text-muted-foreground">Observação</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copyNote(openNotePreview.content)}
-                      className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
-                      title="Copiar"
-                    >
-                      <Copy size={16} className="text-muted-foreground" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOpenNotePreview(null)}
-                      className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
-                      title="Fechar"
-                    >
-                      <X size={16} className="text-muted-foreground" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                    {openNotePreview.content}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
       </div>
