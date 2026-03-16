@@ -615,7 +615,7 @@ export function UpcomingEvents({ events, tags, session }) {
             if (e.target === e.currentTarget) setOpenNote(null);
           }}
         >
-          <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+          <div className="w-full max-w-md max-h-[85vh] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             <div className="p-4 border-b border-border bg-card/60 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground truncate">{openNote.title}</div>
@@ -641,7 +641,7 @@ export function UpcomingEvents({ events, tags, session }) {
               </div>
             </div>
 
-            <div className="p-4">
+            <div className="p-4 overflow-y-auto">
               <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                 {openNote.content}
               </div>
