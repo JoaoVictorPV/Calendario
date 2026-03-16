@@ -538,7 +538,13 @@ export function UpcomingEvents({ events, tags, session }) {
                     return (
                       <div
                         key={ev.id}
-                        className="flex items-start gap-3 p-3 rounded-xl border border-border bg-background/70 hover:bg-background transition-colors"
+                        onClick={() => {
+                          if (hasNote) setOpenNote({ title: ev.title, content: noteContent });
+                        }}
+                        className={cn(
+                          'flex items-start gap-3 p-3 rounded-xl border border-border bg-background/70 hover:bg-background transition-colors',
+                          hasNote && 'cursor-pointer'
+                        )}
                       >
                         <div
                           className="w-3 h-3 rounded-full mt-1 shrink-0"

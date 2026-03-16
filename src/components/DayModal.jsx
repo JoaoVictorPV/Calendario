@@ -5,7 +5,7 @@ import { Copy, MessageSquareText, Plus, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { predefinedTagColors } from '../lib/tagColors';
-import { getEventNote, upsertEventNote } from '../lib/notes';
+import { getEventNote, getNotesForEvents, upsertEventNote } from '../lib/notes';
 
 export function DayModal({ date, onClose, events, tags, setEvents, setTags, session }) {
   const dateKey = format(date, 'yyyy-MM-dd');
@@ -16,6 +16,8 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
   const [noteDraft, setNoteDraft] = useState('');
   const [noteStatus, setNoteStatus] = useState('idle'); // idle | saving | saved
   const saveTimerRef = useRef(null);
+
+  const [notesByEventId, setNotesByEventId] = useState({});
 
   const [newEventTitle, setNewEventTitle] = useState('');
   const [selectedTagId, setSelectedTagId] = useState(null);
@@ -111,6 +113,18 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
     return () => { alive = false; };
   }, [selectedEventIdForNote, session.user.id]);
 
+  // Carrega notas do dia (para ícone por evento)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!session?.user?.id) return;
+      const ids = dayEvents.map(e => e.id);
+      const map = await getNotesForEvents({ userId: session.user.id, eventIds: ids });
+      if (alive) setNotesByEventId(map);
+    })();
+    return () => { alive = false; };
+  }, [dayEvents, session?.user?.id]);
+
   // Auto-save (debounce)
   useEffect(() => {
     if (!selectedEventIdForNote) return;
@@ -133,6 +147,9 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
       } catch {
         // ignore
       }
+
+      // Atualiza mapa local do DayModal também
+      setNotesByEventId(prev => ({ ...prev, [selectedEventIdForNote]: noteDraft }));
 
       setNoteStatus('saved');
       setTimeout(() => setNoteStatus('idle'), 800);
@@ -282,7 +299,12 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                   )}
                   title="Selecionar evento para observações"
                 >
-                  {ev.title}
+                  <span className="truncate max-w-[150px]">{ev.title}</span>
+                  {!!(notesByEventId?.[ev.id] || '').trim() && (
+                    <span className="ml-2 inline-flex items-center" title="Tem observação">
+                      <MessageSquareText size={14} className="text-foreground/70" />
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -311,7 +333,8 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
             ) : (
               dayEvents.map(event => {
                 const tag = tags.find(t => t.id === event.tag_id);
-                const hasNote = selectedEventIdForNote === event.id && !!noteDraft.trim();
+                const content = (notesByEventId?.[event.id] ?? (selectedEventIdForNote === event.id ? noteDraft : ''));
+                const hasNote = !!content.trim();
                 return (
                   <div key={event.id} className="group flex items-start gap-3 p-3 rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all">
                      <div 
@@ -342,7 +365,7 @@ export function DayModal({ date, onClose, events, tags, setEvents, setTags, sess
                      {hasNote && (
                        <button
                          type="button"
-                         onClick={() => setOpenNotePreview({ title: event.title, content: noteDraft })}
+                         onClick={() => setOpenNotePreview({ title: event.title, content })}
                          className="p-2 rounded-lg hover:bg-secondary/40 border border-border bg-background/60"
                          title="Ver observação"
                        >
